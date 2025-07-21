@@ -11,8 +11,12 @@
         {{-- <h3>Name Matching</h3> --}}
         <form action="{{ route('name.match.compare') }}" method="POST" enctype="multipart/form-data">
             @csrf
-            <div class="mb-3">
+            {{-- <div class="mb-3">
                 <label>English Name Excel</label>
+                <input type="file" name="eng_file" class="form-control" required>
+            </div> --}}
+            <div class="mb-3">
+                <label>Myanmar Name Excel</label>
                 <input type="file" name="eng_file" class="form-control" required>
             </div>
             <div class="mb-3">
@@ -28,9 +32,9 @@
             <table class="table table-bordered">
                 <thead>
                     <tr>
-                        <th>English Name</th>
-                        <th>Burmese Name</th>
-                        <th>Romanized</th>
+                        <th>Base Burmese Name</th>
+                        <th>Match Burmese Name</th>
+                        {{-- <th>Romanized</th> --}}
                         <th>Match %</th>
                     </tr>
                 </thead>
@@ -39,8 +43,8 @@
                         <tr>
                             <td>{{ $row['eng'] }}</td>
                             <td>{{ $row['mm'] }}</td>
-                            <td>{{ $row['roman'] }}</td>
-                            <td>{{ $row['match'] }}%</td>
+                            {{-- <td>{{ $row['roman'] }}</td> --}}
+                            <td>{{ $row['similarity'] }}%</td>
                         </tr>
                     @endforeach
                 </tbody>

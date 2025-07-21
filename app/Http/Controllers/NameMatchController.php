@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use Rabbit;
 use Illuminate\Http\Request;
+use App\Exports\MatchedExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Session;
-use App\Exports\MatchedExport;
 
 class NameMatchController extends Controller
 {
@@ -23,26 +24,55 @@ class NameMatchController extends Controller
         $mmNames = Excel::toArray([], $request->file('mm_file'))[0];
         // dd($engNames, $mmNames); // Debugging line to check the contents of the files
         $results = [];
+        // Debugging line to check the contents of the files
+        // foreach ($engNames as $eRow) {
+        //     $eng = strtolower($eRow[0] ?? '');
+        //     // dd($eng);
+        //     if (empty($eng)) continue;
 
+        //     foreach ($mmNames as $mRow) {
+        //         $mm = $mRow[0] ?? '';
+        //         if (empty($mm)) continue;
+
+        //         $roman = $this->romanize($mm);
+        //         $match = $this->matchPercent($eng, $roman);
+
+        //         if ($match >= 60) {
+        //             $results[] = [
+        //                 'eng' => $eng,
+        //                 'mm' => $mm,
+        //                 'roman' => $roman,
+        //                 'match' => $match,
+        //             ];
+        //         }
+        //     }
+        // }
         foreach ($engNames as $eRow) {
             $eng = strtolower($eRow[0] ?? '');
+            Rabbit::zg2uni($eng);
             if (empty($eng)) continue;
 
             foreach ($mmNames as $mRow) {
-                $mm = $mRow[0] ?? '';
+                $mm = strtolower($mRow[0] ?? '');
+                Rabbit::zg2uni($mm);
                 if (empty($mm)) continue;
 
-                $roman = $this->romanize($mm);
-                $match = $this->matchPercent($eng, $roman);
+                // Direct Levenshtein similarity
+                // $distance = levenshtein($eng, $mm);
+                // $maxLen = max(mb_strlen($eng), mb_strlen($mm));
+                // $ratio = $maxLen > 0 ? (1 - $distance / $maxLen) * 100 : 0;
 
-                if ($match >= 60) {
-                $results[] = [
-                    'eng' => $eng,
-                    'mm' => $mm,
-                    'roman' => $roman,
-                    'match' => $match,
-                ];
-            }
+                // Direct similar_text similarity
+                similar_text($eng, $mm, $ratio);
+
+
+                if ($ratio >= 50) {
+                    $results[] = [
+                        'eng' => $eng,
+                        'mm' => $mm,
+                        'similarity' => round($ratio, 2),
+                    ];
+                }
             }
         }
 
@@ -55,88 +85,46 @@ class NameMatchController extends Controller
         $data = Session::get('matched_results', []);
         return Excel::download(new MatchedExport($data), 'matched_results.xlsx');
     }
-
-    // protected function romanize($mm)
-    // {
-    //     return str_replace(
-    //         ['မောင်', 'မြင့်', 'သူ', 'အောင်','လင်း'],
-    //         ['mg', 'myint', 'thu', 'aung','lin'],
-    //         strtolower($mm)
-    //     );
-    // }
-
-    protected function romanize($mm)
-    {
-        $mm_words = [
-            'မောင်' => 'mg',
-            'မြင့်' => 'myint',
-            'အောင်' => 'aung',
-            'သူ' => 'thu',
-            'လင်း' => 'lin',
-            'စိုး' => 'soe',
-            'မယ်' => 'me',
-            'မင်း' => 'min',
-            'နိုင်' => 'naing',
-            'သိန်း' => 'thein',
-            'ကို' => 'ko',
-            'ချစ်' => 'chit',
-            'စံ' => 'san',
-            'ဇင်' => 'zin',
-            'ကျော်' => 'kyaw',
-            'သန်း' => 'than',
-            'သက်' => 'thet',
-            'ဇော်' => 'zaw',
-            'ထွန်း' => 'htun',
-            'သစ်' => 'thit',
-            'မမ' => 'ma ma',
-            'ထက်' => 'htet',
-            'တင်' => 'tin',
-            'ဦး' => 'u',
-            'ဥဒေါ်' => 'daw',
-            'တော်' => 'taw',
-            'ကောင်း' => 'kaung',
-            'မင်း' => 'min',
-            'မေ' => 'may',
-            'ထွဋ်' => 'htut',
-            'ညို' => 'nyo',
-            'အိမ့်' => 'ein',
-            'ပွင့်' => 'pwint',
-            'ဝင်း' => 'win',
-            'သော်' => 'thaw',
-            'မုန်း' => 'mone',
-            'ခင်' => 'khin',
-            'ချို' => 'cho',
-            'စွမ်း' => 'swann',
-            'စည်' => 'si',
-            'ကြည်' => 'kyi',
-            'မြ' => 'mya',
-            'မော်' => 'maw',
-            'ဆု' => 'su',
-            'ယမင်း' => 'yamin',
-            'အေး' => 'aye',
-            'မြင့်' => 'myint',
-            'ဉာဏ်' => 'nyan',
-            'ညွန့်' => 'nyunt',
-            'ပင်' => 'pin',
-            'ဇင်မြင့်' => 'zin myint',
-            'လှ' => 'hla',
-            'အိမ်' => 'ein',
-            'ဝေ' => 'way',
-            'ဦး' => 'u',
-            'မောင်မောင်' => 'mg mg',
-            // ... (တခြားထပ်ထည့်နိုင်သမျှ)
-        ];
-
-        return str_replace(array_keys($mm_words), array_values($mm_words), strtolower($mm));
-    }
-
-
-    protected function matchPercent($a, $b)
-    {
-        similar_text($a, $b, $percent);
-        return round($percent, 2);
-    }
 }
+// protected function romanize($mm)
+// {
+//     return str_replace(
+//         ['မောင်', 'မြင့်', 'သူ', 'အောင်','လင်း'],
+//         ['mg', 'myint', 'thu', 'aung','lin'],
+//         strtolower($mm)
+//     );
+// }
+
+//     protected function romanize($mm)
+//     {
+//         $mm_words = [
+//             'မန်' => 'မ',
+//             'မန့်' => 'မန်း',
+//             'မျက်' => 'မက်',
+//             'ကြီး' => 'ကျီး',
+//             'ပင်' => 'ပင်',
+//         ];
+//         return str_replace(array_keys($mm_words), array_values($mm_words), strtolower($mm));
+//     }
+
+
+//     // ...existing code...
+
+//     // protected function matchPercent($base, $target)
+//     // {
+//     //     $distance = levenshtein($base, $target);
+//     //     $maxLen = max(mb_strlen($base), mb_strlen($target));
+//     //     $ratio = $maxLen > 0 ? (1 - $distance / $maxLen) * 100 : 0;
+//     //     return round($ratio, 2);
+//     // }
+
+//     // ...existing code...
+//     protected function matchPercent($a, $b)
+//     {
+//         similar_text($a, $b, $percent);
+//         return round($percent, 2);
+//     }
+// }
 
 /**
  * Show the form for creating a new resource.
